@@ -75,6 +75,8 @@ line.link {
               <dd id="selType"></dd>
               <dt>licence</dt>
               <dd id="selLicence"></dd>
+              <dt>size</dt>
+              <dd id="selSize"></dd>
               <dt>no. sources</dt>
               <dd id="nSelSources"></dd>
             </dl>
@@ -178,6 +180,7 @@ var reportFeeds = d3.select("#nFeeds");
 var reportNSelSources = d3.select('#nSelSources');
 var reportSelLicence = d3.select('#selLicence');
 var reportSelType = d3.select('#selType');
+var reportSelSize = d3.select('#selSize');
 
 d3.select('#nSources').text(nSources);
 d3.select('#pNonCommercialOrg').text((pNonCommercialOrg * 100) + '%');
@@ -274,7 +277,6 @@ function tick() {
       id: i++,
       source: false,
       size: 12,
-      age: -1,
       noncommercial: Math.random() < pNonCommercialOrg,
       sources: [],
       licence: null
@@ -437,6 +439,7 @@ function hover(d) {
   reportNSelSources.text(d.source ? "NA" : d.sources.length);
   reportSelLicence.text(d.licence === null ? 'NA' : d.licence.name);
   reportSelType.text(d.source ? "public" : (d.noncommercial ? "third" : "private"));
+  reportSelSize.text(d.size);
 }
 
 function sources(orgId) {
