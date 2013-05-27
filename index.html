@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<!-- saved from url=(0065)http://mbostock.github.io/d3/talk/20111116/force-collapsible.html -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <link rel="stylesheet" href="css/bootstrap.css" />
+    <style type="text/css">
+body {
+  background-color: white;
+}
+
+#simulation .dl-horizontal dt {
+  width: 80px;
+}
+
+#simulation .dl-horizontal dd {
+  margin-left: 95px;
+}
+
+circle.node {
+  cursor: pointer;
+  stroke: #000;
+  stroke-width: 2px;
+}
+
+line.link {
+  fill: none;
+  stroke: #9ecae1;
+  stroke-width: 1.5px;
+}
+
+    </style>
+  </head>
+  <body id="simulation">
+    <div class="container">
+      <h1>Licensing Simulation</h1>
+      <div class="row-fluid">
+        <div class="span3">
+          <div class="well">
+            <h2>Setup</h2>
+            <dl class="dl-horizontal">
+              <dt>no. sources</dt>
+              <dd id="nSources"></dd>
+              <dt>p. non-comm</dt>
+              <dd id="pNonCommercialOrg"></dd>
+              <dt>p. by</dt>
+              <dd id="pOpen"></dd>
+              <dt>p. sa</dt>
+              <dd id="pShareAlike"></dd>
+              <dt>p. nc</dt>
+              <dd id="pNonCommercial"></dd>
+              <dt>no. by</dt>
+              <dd id="nAttribution"></dd>
+              <dt>no. sa</dt>
+              <dd id="nSA"></dd>
+              <dt>no. nc</dt>
+              <dd id="nNC"></dd>
+              <dt>no. sa-nc</dt>
+              <dd id="nSANC"></dd>
+              <dt>no. comm</dt>
+              <dd id="nCommercial"></dd>
+            </dl>
+          </div>
+          <div class="well">
+            <h2>Results</h2>
+            <dl class="dl-horizontal">
+              <dt>no. orgs</dt>
+              <dd id="nOrgs"></dd>
+              <dt>no. links</dt>
+              <dd id="nFeeds"></dd>
+            </dl>
+          </div>
+          <div class="well">
+            <h2>Selection</h2>
+            <dl class="dl-horizontal">
+              <dt>type</dt>
+              <dd id="selType"></dd>
+              <dt>licence</dt>
+              <dd id="selLicence"></dd>
+              <dt>no. sources</dt>
+              <dd id="nSelSources"></dd>
+            </dl>
+          </div>
+        </div>
+        <div class="span9" id="viz">
+        </div>
+      </div>
+    </div>
+    <script type="text/javascript" src="d3.v3/d3.v3.js"></script>
+    <script type="text/javascript">
+
+var w = 700,
+    h = 800,
+    cSource = "#636363",
+    cNonCommercial = "#969696",
+    cCommercial = "#bdbdbd",
+    nSources = 5,
+    nMax = 100,
+    nTicks = 1000,
+    ticks = 0,
+    pConnect = 0.2,
+    pNonCommercialOrg = 0.2,
+    pOpen = 0.2,
+    pShareAlike = 0.2,
+    pNonCommercial = 0.2,
+    i = 0,
+    orgs = [],
+    feeds = [],
+    licence,
+    node,
+    link,
+    root;
+
+var licences = {
+  "attribution": {
+    name: "attribution",
+    count: 0,
+    open: true,
+    sa: false,
+    nc: false,
+    color: "#31a354"
+  }, 
+  "share-alike": {
+    name: "share-alike",
+    count: 0,
+    open: true,
+    sa: true,
+    nc: false,
+    color: "#74c476"
+  }, 
+  "non-commercial": {
+    name: "non-commercial",
+    count: 0,
+    open: false,
+    sa: false,
+    nc: true,
+    color: "#fd8d3c"
+  }, 
+  "share-alike-non-commercial": {
+    name: "share-alike-non-commercial",
+    count: 0,
+    open: false,
+    sa: true,
+    nc: true,
+    color: "#fdae6b"
+  }, 
+  "commercial": {
+    name: "commercial",
+    count: 0,
+    open: false,
+    sa: false,
+    nc: false,
+    color: "#e6550d"
+  }
+};
+
+for (i = 0; i < nSources; i++) {
+  licence = randomLicence();
+  orgs.push({
+    id: i,
+    source: true,
+    licence: licence,
+    size: 100
+  });
+  licences[licence.name].count++;
+}
+
+var force = d3.layout.force()
+    .on("tick", tick)
+    .charge(function(d) { return -d.size; })
+    .linkDistance(function(d) { return d.target.sources.length * 15; })
+    .size([w, h - 160]);
+
+var vis = d3.select("#viz").append("svg:svg")
+    .attr("width", w)
+    .attr("height", h);
+
+var reportOrgs = d3.select("#nOrgs");
+var reportFeeds = d3.select("#nFeeds");
+var reportNSelSources = d3.select('#nSelSources');
+var reportSelLicence = d3.select('#selLicence');
+var reportSelType = d3.select('#selType');
+
+d3.select('#nSources').text(nSources);
+d3.select('#pNonCommercialOrg').text((pNonCommercialOrg * 100) + '%');
+d3.select('#pOpen').text((pOpen * 100) + '%');
+d3.select('#pShareAlike').text((pShareAlike * 100) + '%');
+d3.select('#pNonCommercial').text((pNonCommercial * 100) + '%');
+
+d3.select('#nAttribution').text(licences['attribution'].count);
+d3.select('#nSA').text(licences['share-alike'].count);
+d3.select('#nNC').text(licences['non-commercial'].count);
+d3.select('#nSANC').text(licences['share-alike-non-commercial'].count);
+d3.select('#nCommercial').text(licences['commercial'].count);
+
+/*
+d3.json("flare.json", function(json) {
+  root = json;
+  root.fixed = true;
+  root.x = w / 2;
+  root.y = h / 2 - 80;
+  update();
+});
+*/
+update();
+
+function update() {
+  var nodes = orgs,
+      links = feeds;
+
+  // Update the counts
+  reportOrgs.text(orgs.length);
+  reportFeeds.text(feeds.length);
+
+  // Restart the force layout.
+  force
+      .nodes(nodes)
+      .links(links)
+      .start();
+
+  // Update the links…
+  link = vis.selectAll("line.link")
+      .data(links, function(d) { return d.source.id + '-' + d.target.id; })
+      .style("stroke", linkColor);
+
+  // Enter any new links.
+  link.enter().insert("svg:line", ".node")
+      .attr("class", "link")
+      .attr("x1", function(d) { return d.source.x; })
+      .attr("y1", function(d) { return d.source.y; })
+      .attr("x2", function(d) { return d.target.x; })
+      .attr("y2", function(d) { return d.target.y; })
+      .style("stroke", linkColor);
+
+  // Exit any old links.
+  link.exit().remove();
+
+  // Update the nodes…
+  node = vis.selectAll("circle.node")
+      .data(nodes, function(d) { return d.id; })
+      .style("fill", color)
+      .style("stroke", licenceColor);
+
+  node.transition()
+      .attr("r", function(d) { return d.size === 0 ? 0 : Math.sqrt(d.size); });
+
+  // Enter any new nodes.
+  node.enter().append("svg:circle")
+      .attr("class", "node")
+      .attr("cx", function(d) { return d.x; })
+      .attr("cy", function(d) { return d.y; })
+      .attr("r", function(d) { return d.size === 0 ? 0 : Math.sqrt(d.size); })
+      .style("fill", color)
+      .on("click", click)
+      .on("mouseover", hover)
+      .call(force.drag);
+
+  // Exit any old nodes.
+  node.exit().remove();
+}
+
+function tick() {
+  var org, 
+      feed,
+      source,
+      newOrgs,
+      newFeeds,
+      newSources,
+      j = 0,
+      k = 0,
+      exists;
+  ticks++;
+  if (i < nMax) {
+    source = orgs[Math.floor(Math.random() * (orgs.length - 1))];
+    org = {
+      id: i++,
+      source: false,
+      size: 12,
+      age: -1,
+      noncommercial: Math.random() < pNonCommercialOrg,
+      sources: [],
+      licence: null
+    };
+    orgs.push(org);
+  }
+
+  if (ticks < nTicks) {
+    newOrgs = [];
+    for (j = 0; j < orgs.length; j++) {
+      org = orgs[j];
+      if (!org.source) {
+        org.expanded = false;
+        if (org.sources.length < 5 && Math.random() < pConnect) {
+          source = orgs[Math.floor(Math.random() * (orgs.length - 1))];
+          exists = false;
+          for (k = 0; k < org.sources.length; k++) {
+            if (org.sources[k].id === source.id) {
+              exists = true;
+              break;
+            }
+          }
+          // not something we can't connect to
+          if (source.id !== org.id && !exists && (source.source || source.sources.length > 0)) {
+            // something affordable
+            if (source.licence.open || org.size > 20 || (org.noncommercial && source.licence.nc)) {
+              // compatible licence
+              if ((!source.licence.nc || org.noncommercial) && (org.licence === null || areCompatible(source.licence, org.licence))) {
+                org.expanded = true;
+                if (org.licence === null) {
+                  org.licence = compatibleLicence(source.licence);
+                }
+                feeds.push({
+                  source: source,
+                  target: org
+                });
+              }
+            }
+          }
+        }
+        org.age++;
+        org.sources = sources(org.id);
+        if (org.sources.length > 0) {
+          if (org.expanded) {
+            org.size += (org.sources.length * 10);
+          }
+        } else {
+          org.size--;
+        }
+      }
+      if (org.size > 0) {
+        newOrgs.push(org);
+      }
+    }
+    orgs = newOrgs;
+    newFeeds = [];
+    for (j = 0; j < feeds.length; j++) {
+      feed = feeds[j];
+      if (feed.source.size > 0 && feed.target.size > 0) {
+        newFeeds.push(feed);
+      }
+    }
+    feeds = newFeeds;
+    update();   
+  }
+
+  link.attr("x1", function(d) { return d.source.x; })
+      .attr("y1", function(d) { return d.source.y; })
+      .attr("x2", function(d) { return d.target.x; })
+      .attr("y2", function(d) { return d.target.y; });
+
+  node.attr("cx", function(d) { return d.x; })
+      .attr("cy", function(d) { return d.y; })
+      .attr("r", function(d) { return d.size === 0 ? 0 : Math.sqrt(d.size); });
+}
+
+function color(d) {
+  return d.source ? cSource : (d.noncommercial ? cNonCommercial : cCommercial);
+}
+
+function licenceColor(d) {
+  return d.licence === null ? "#d9d9d9" : d.licence.color;
+}
+
+function linkColor(d) {
+  return licenceColor(d.source);
+}
+
+function compatibleLicence(source) {
+  if (source.sa) {
+    return source;
+  } else if (source.open) {
+    return randomLicence();
+  } else if (source.nc) {
+    if (Math.random() < pShareAlike) {
+      return licences['share-alike-non-commercial'];
+    } else {
+      return licences['non-commercial'];
+    }
+  } else {
+    return source;
+  }
+}
+
+function areCompatible(source, target) {
+  if (source.sa) {
+    return target.name === source.name;
+  } else if (source.open) {
+    if (source.nc) {
+      return target.nc;
+    } else {
+      return true;
+    }
+  } else if (source.nc) {
+    return target.nc;
+  } else {
+    return !target.open && !target.nc;
+  }
+}
+
+function randomLicence() {
+  if (Math.random() < pOpen) {
+    // open licence
+    if (Math.random() < pShareAlike) {
+      return licences['share-alike'];
+    } else {
+      return licences['attribution'];
+    }
+  } else if (Math.random() < pNonCommercial) {
+    // non-commercial licence
+    if (Math.random() < pShareAlike) {
+      return licences['share-alike-non-commercial'];
+    } else {
+      return licences['non-commercial'];
+    }
+  } else {
+    return licences['commercial'];
+  }
+}
+
+// Toggle children on click.
+function click(d) {
+  if (d.children) {
+    d._children = d.children;
+    d.children = null;
+  } else {
+    d.children = d._children;
+    d._children = null;
+  }
+  update();
+}
+
+function hover(d) {
+  var sourceIds = [];
+  if (d.sources) {
+    for (var j = 0; j < d.sources.length; j++) {
+      sourceIds.push(d.sources[j].id);
+    }
+  }
+  reportNSelSources.text(d.source ? "NA" : d.sources.length);
+  reportSelLicence.text(d.licence === null ? 'NA' : d.licence.name);
+  reportSelType.text(d.source ? "public" : (d.noncommercial ? "third" : "private"));
+}
+
+function sources(orgId) {
+  var sources = [];
+  for (var j = 0; j < feeds.length; j++) {
+    if (feeds[j].target.id === orgId) {
+      sources.push(feeds[j].source);
+    }
+  }
+  return sources;
+}
+
+// Returns a list of all nodes under the root.
+function flatten(root) {
+  var nodes = [], i = 0;
+
+  function recurse(node) {
+    if (node.children) node.size = node.children.reduce(function(p, v) { return p + recurse(v); }, 0);
+    if (!node.id) node.id = ++i;
+    nodes.push(node);
+    return node.size;
+  }
+
+  root.size = recurse(root);
+  return nodes;
+}
+
+    </script>
+  </bod              <dt>p. share-alike</dt>
+              <dd id="pShareAlike"></dd>
+y>
+</html>
