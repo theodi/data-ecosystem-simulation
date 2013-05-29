@@ -32,33 +32,44 @@ line.link {
   <body id="simulation">
     <div class="container">
       <h1>Licensing Simulation</h1>
-      <div class="row-fluid">
-        <div class="span3">
-          <div class="well">
-            <h2>Setup</h2>
+      <div class="well">
+        <div class="row-fluid">
+          <div class="span3">
             <dl class="dl-horizontal">
-              <dt>no. sources</dt>
-              <dd id="nSources"></dd>
               <dt>p. non-comm</dt>
               <dd id="pNonCommercialOrg"></dd>
               <dt>p. by</dt>
               <dd id="pOpen"></dd>
+            </dl>
+          </div>
+          <div class="span3">
+            <dl class="dl-horizontal">
               <dt>p. sa</dt>
               <dd id="pShareAlike"></dd>
               <dt>p. nc</dt>
               <dd id="pNonCommercial"></dd>
+            </dl>
+          </div>
+          <div class="span3">
+            <dl class="dl-horizontal">
               <dt>no. by</dt>
               <dd id="nAttribution"></dd>
               <dt>no. sa</dt>
               <dd id="nSA"></dd>
+            </dl>
+          </div>
+          <div class="span3">
+            <dl class="dl-horizontal">
               <dt>no. nc</dt>
               <dd id="nNC"></dd>
-              <dt>no. sa-nc</dt>
-              <dd id="nSANC"></dd>
               <dt>no. comm</dt>
               <dd id="nCommercial"></dd>
             </dl>
           </div>
+        </div>
+      </div>
+      <div class="row-fluid">
+        <div class="span3">
           <div class="well">
             <h2>Results</h2>
             <dl class="dl-horizontal">
@@ -66,6 +77,8 @@ line.link {
               <dd id="nOrgs"></dd>
               <dt>no. links</dt>
               <dd id="nFeeds"></dd>
+              <dt>total</dt>
+              <dd id="size"></dd>
             </dl>
           </div>
           <div class="well">
@@ -94,7 +107,6 @@ var w = 700,
     cSource = "#636363",
     cNonCommercial = "#969696",
     cCommercial = "#bdbdbd",
-    nSources = 5,
     nMax = 100,
     nTicks = 1000,
     ticks = 0,
@@ -114,7 +126,7 @@ var w = 700,
 var licences = {
   "attribution": {
     name: "attribution",
-    count: 0,
+    count: 2,
     open: true,
     sa: false,
     nc: false,
@@ -130,23 +142,15 @@ var licences = {
   }, 
   "non-commercial": {
     name: "non-commercial",
-    count: 0,
+    count: 2,
     open: false,
     sa: false,
     nc: true,
     color: "#fd8d3c"
   }, 
-  "share-alike-non-commercial": {
-    name: "share-alike-non-commercial",
-    count: 0,
-    open: false,
-    sa: true,
-    nc: true,
-    color: "#fdae6b"
-  }, 
   "commercial": {
     name: "commercial",
-    count: 0,
+    count: 3,
     open: false,
     sa: false,
     nc: false,
@@ -154,15 +158,15 @@ var licences = {
   }
 };
 
-for (i = 0; i < nSources; i++) {
-  licence = randomLicence();
-  orgs.push({
-    id: i,
-    source: true,
-    licence: licence,
-    size: 100
-  });
-  licences[licence.name].count++;
+for (licence in licences) {
+  for (j = 0; j < licences[licence].count; j++) {
+    orgs.push({
+      id: i++,
+      source: true,
+      licence: licences[licence],
+      size: 100
+    });
+  }
 }
 
 var force = d3.layout.force()
@@ -177,12 +181,12 @@ var vis = d3.select("#viz").append("svg:svg")
 
 var reportOrgs = d3.select("#nOrgs");
 var reportFeeds = d3.select("#nFeeds");
+var reportSize = d3.select('#size');
 var reportNSelSources = d3.select('#nSelSources');
 var reportSelLicence = d3.select('#selLicence');
 var reportSelType = d3.select('#selType');
 var reportSelSize = d3.select('#selSize');
 
-d3.select('#nSources').text(nSources);
 d3.select('#pNonCommercialOrg').text((pNonCommercialOrg * 100) + '%');
 d3.select('#pOpen').text((pOpen * 100) + '%');
 d3.select('#pShareAlike').text((pShareAlike * 100) + '%');
@@ -191,7 +195,6 @@ d3.select('#pNonCommercial').text((pNonCommercial * 100) + '%');
 d3.select('#nAttribution').text(licences['attribution'].count);
 d3.select('#nSA').text(licences['share-alike'].count);
 d3.select('#nNC').text(licences['non-commercial'].count);
-d3.select('#nSANC').text(licences['share-alike-non-commercial'].count);
 d3.select('#nCommercial').text(licences['commercial'].count);
 
 /*
@@ -207,11 +210,16 @@ update();
 
 function update() {
   var nodes = orgs,
-      links = feeds;
+      links = feeds,
+      size = 0;
 
   // Update the counts
   reportOrgs.text(orgs.length);
   reportFeeds.text(feeds.length);
+  for (j = 0; j < orgs.length; j++) {
+    size += orgs[j].size;
+  }
+  reportSize.text(size);
 
   // Restart the force layout.
   force
@@ -321,7 +329,7 @@ function tick() {
         org.sources = sources(org.id);
         if (org.sources.length > 0) {
           if (org.expanded) {
-            org.size += (org.sources.length * 10);
+            org.size += Math.floor(Math.random() * org.sources.length * 10);
           }
         } else {
           org.size--;
@@ -371,11 +379,7 @@ function compatibleLicence(source) {
   } else if (source.open) {
     return randomLicence();
   } else if (source.nc) {
-    if (Math.random() < pShareAlike) {
-      return licences['share-alike-non-commercial'];
-    } else {
-      return licences['non-commercial'];
-    }
+    return licences['non-commercial'];
   } else {
     return source;
   }
@@ -407,11 +411,7 @@ function randomLicence() {
     }
   } else if (Math.random() < pNonCommercial) {
     // non-commercial licence
-    if (Math.random() < pShareAlike) {
-      return licences['share-alike-non-commercial'];
-    } else {
-      return licences['non-commercial'];
-    }
+    return licences['non-commercial'];
   } else {
     return licences['commercial'];
   }
