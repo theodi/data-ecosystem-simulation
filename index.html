@@ -27,6 +27,12 @@ line.link {
   stroke-width: 1.5px;
 }
 
+.swatch {
+  display: inline-block;
+  width: 1em;
+  height: 1.2em;
+  margin-right: 0.5em;
+}
     </style>
   </head>
   <body id="simulation">
@@ -76,11 +82,11 @@ line.link {
             </div>
             <div class="span3">
               <dl class="dl-horizontal">
-                <dt>no. by</dt>
+                <dt><span class="swatch" id="cattribution"></span>no. by</dt>
                 <dd>
                   <input id="nattribution" name="nattribution" class="span6" type="number" min="0" max="10" step="1" length="3" />
                 </dd>
-                <dt>no. sa</dt>
+                <dt><span class="swatch" id="cshare-alike"></span>no. sa</dt>
                 <dd>
                   <input id="nshare-alike" name="nshare-alike" class="span6" type="number" min="0" max="10" step="1" length="3" />
                 </dd>
@@ -88,11 +94,11 @@ line.link {
             </div>
             <div class="span3">
               <dl class="dl-horizontal">
-                <dt>no. nc</dt>
+                <dt><span class="swatch" id="cnon-commercial"></span>no. nc</dt>
                 <dd>
                   <input id="nnon-commercial" name="nnon-commercial" class="span6" type="number" min="0" max="10" step="1" length="3" />
                 </dd>
-                <dt>no. comm</dt>
+                <dt><span class="swatch" id="ccommercial"></span>no. comm</dt>
                 <dd>
                   <input id="ncommercial" name="ncommercial" class="span6" type="number" min="0" max="10" step="1" length="3" />
                 </dd>
@@ -117,7 +123,7 @@ line.link {
           <div class="well">
             <h2>Selection</h2>
             <dl class="dl-horizontal">
-              <dt>type</dt>
+              <dt>sector</dt>
               <dd id="selType"></dd>
               <dt>licence</dt>
               <dd id="selLicence"></dd>
@@ -171,7 +177,7 @@ var licences = {
     open: true,
     sa: true,
     nc: false,
-    color: "#74c476"
+    color: "#bcbd22"
   }, 
   "non-commercial": {
     name: "non-commercial",
@@ -179,7 +185,7 @@ var licences = {
     open: false,
     sa: false,
     nc: true,
-    color: "#fd8d3c"
+    color: "#3182bd"
   }, 
   "commercial": {
     name: "commercial",
@@ -224,6 +230,7 @@ for (licence in licences) {
       size: 100
     });
   }
+  d3.select('#c' + licence).style('background-color', licences[licence].color);
 }
 
 var force = d3.layout.force()
